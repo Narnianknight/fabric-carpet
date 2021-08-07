@@ -92,12 +92,6 @@ public class PlayerCommand
                                 .then(literal("backward").executes(c -> manipulate(c, ap -> ap.setForward(-1))))
                                 .then(literal("left").executes(c -> manipulate(c, ap -> ap.setStrafing(1))))
                                 .then(literal("right").executes(c -> manipulate(c, ap -> ap.setStrafing(-1))))
-                        ).then(literal("spawn").executes(PlayerCommand::spawn)
-                                .then(literal("at").then(argument("position", Vec3ArgumentType.vec3()).executes(PlayerCommand::spawn)
-                                        .then(literal("facing").then(argument("direction", RotationArgumentType.rotation()).executes(PlayerCommand::spawn)
-                                                .then(literal("in").then(argument("dimension", DimensionArgumentType.dimension()).executes(PlayerCommand::spawn)))
-                                        ))
-                                ))
                         )
                 );
         dispatcher.register(literalargumentbuilder);
@@ -246,54 +240,6 @@ public class PlayerCommand
         {
             return b.get();
         }
-    }
-
-    private static int spawn(CommandContext<ServerCommandSource> context) throws CommandSyntaxException
-    {
-        if (cantSpawn(context)) return 0;
-        ServerCommandSource source = context.getSource();
-        Vec3d pos = tryGetArg(
-                () -> Vec3ArgumentType.getVec3(context, "position"),
-                source::getPosition
-        );
-        Vec2f facing = tryGetArg(
-                () -> RotationArgumentType.getRotation(context, "direction").toAbsoluteRotation(context.getSource()),
-                source::getRotation
-        );
-        RegistryKey<World> dimType = tryGetArg(
-                () -> DimensionArgumentType.getDimensionArgument(context, "dimension").getRegistryKey(),
-                () -> source.getWorld().getRegistryKey() // dimension.getType()
-        );
-        GameMode mode = GameMode.CREATIVE;
-        boolean flying = false;
-        try
-        {
-            ServerPlayerEntity player = context.getSource().getPlayer();
-            mode = player.interactionManager.getGameMode();
-            flying = player.getAbilities().flying;
-        }
-        catch (CommandSyntaxException ignored) {}
-        String playerName = StringArgumentType.getString(context, "player");
-        if (playerName.length()>maxPlayerLength(source.getServer()))
-        {
-            Messenger.m(context.getSource(), "rb Player name: "+playerName+" is too long");
-            return 0;
-        }
-
-        MinecraftServer server = source.getServer();
-        if (!World.isValid(new BlockPos(pos.x, pos.y, pos.z)))
-        {
-            Messenger.m(context.getSource(), "rb Player "+playerName+" cannot be placed outside of the world");
-            return 0;
-        }
-        PlayerEntity player = EntityPlayerMPFake.createFake(playerName, server, pos.x, pos.y, pos.z, facing.y, facing.x, dimType, mode, flying);
-        if (player == null)
-        {
-            Messenger.m(context.getSource(), "rb Player " + StringArgumentType.getString(context, "player") + " doesn't exist " +
-                    "and cannot spawn in online mode. Turn the server offline to spawn non-existing players");
-            return 0;
-        }
-        return 1;
     }
 
     private static int maxPlayerLength(MinecraftServer server)
